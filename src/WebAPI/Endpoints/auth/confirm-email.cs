@@ -3,21 +3,20 @@ using Core.Services.Authentication;
 
 namespace WebAPI.Endpoints.auth;
 
-public record RegisterRequest(string Username, string Email, string Password);
-public record RegisterResponse(Guid Id);
-public class RegisterEndpoint(AuthenticationService authenticationService) : Endpoint<RegisterRequest, RegisterResponse>
+public record ConfirmEmailRequest(string token);
+public class ConfirmEmailEndPoint(AuthenticationService authenticationService) : Endpoint<ConfirmEmailRequest, EmptyResponse>
 {
   private readonly AuthenticationService _authenticationService = authenticationService;
 
   public override void Configure()
   {
-    Post("/auth/register");
+    Post("/auth/confirm-email");
     AllowAnonymous();
   }
 
-  public override async Task HandleAsync(RegisterRequest req, CancellationToken ct)
+  public override async Task HandleAsync(ConfirmEmailRequest req, CancellationToken ct)
   {
-    var result = await _authenticationService.Register(req.Username, req.Email, req.Password);
+    var result = await _authenticationService.ConfirmEmail(req.token);
 
     if (!result.IsSuccess || result.Value == null)
     {
@@ -27,6 +26,6 @@ public class RegisterEndpoint(AuthenticationService authenticationService) : End
       return;
     }
 
-    await Send.OkAsync(new RegisterResponse(result.Value.Id));
+    await Send.OkAsync();
   }
 }

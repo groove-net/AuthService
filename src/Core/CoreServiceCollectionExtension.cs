@@ -1,9 +1,10 @@
 using Core.Data;
-using Core.Services.Register;
+using Core.Services.Authentication;
 using Core.Utilities;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Core;
 
@@ -13,7 +14,9 @@ public static class CoreServiceCollectionExtensions
   {
     ArgumentNullException.ThrowIfNull(configureDb);
     services.AddScoped<PasswordHasher>();
-    services.AddScoped<RegisterService>();
+    services.AddScoped<EmailTokenGenerator>();
+    services.AddScoped<AuthenticationService>();
+    services.AddDataProtection();
     services.AddDbContext<AppDbContext>(configureDb);
     return services;
   }

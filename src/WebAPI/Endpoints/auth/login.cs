@@ -3,21 +3,21 @@ using Core.Services.Authentication;
 
 namespace WebAPI.Endpoints.auth;
 
-public record RegisterRequest(string Username, string Email, string Password);
-public record RegisterResponse(Guid Id);
-public class RegisterEndpoint(AuthenticationService authenticationService) : Endpoint<RegisterRequest, RegisterResponse>
+public record LoginRequest(string Username, string Password);
+public record LoginResponse(Guid Id, string Username);
+public class LoginEndPoint(AuthenticationService authenticationService) : Endpoint<LoginRequest, LoginResponse>
 {
   private readonly AuthenticationService _authenticationService = authenticationService;
 
   public override void Configure()
   {
-    Post("/auth/register");
+    Post("/auth/login");
     AllowAnonymous();
   }
 
-  public override async Task HandleAsync(RegisterRequest req, CancellationToken ct)
+  public override async Task HandleAsync(LoginRequest req, CancellationToken ct)
   {
-    var result = await _authenticationService.Register(req.Username, req.Email, req.Password);
+    var result = await _authenticationService.Login(req.Username, req.Password);
 
     if (!result.IsSuccess || result.Value == null)
     {
@@ -27,6 +27,6 @@ public class RegisterEndpoint(AuthenticationService authenticationService) : End
       return;
     }
 
-    await Send.OkAsync(new RegisterResponse(result.Value.Id));
+    await Send.OkAsync(new LoginResponse(result.Value.Id, result.Value.Username));
   }
 }

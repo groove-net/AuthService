@@ -1,6 +1,6 @@
 using Core.Models;
 
-namespace Core.Services.Register.Errors;
+namespace Core.Services.Authentication.Errors;
 
 public record RegisterUserError : Error
 {

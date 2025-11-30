@@ -9,3 +9,5 @@ public record Result<TValue, TError>
   public static Result<TValue, TError> Success(TValue value) => new() { Value = value };
   public static Result<TValue, TError> Fail(TError error) => new() { Error = error };
 }
+
+public record NoResult();

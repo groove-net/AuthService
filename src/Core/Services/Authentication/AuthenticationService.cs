@@ -1,0 +1,147 @@
+using Core.Data;
+using Core.Models;
+using Core.Services.Authentication.Errors;
+using Core.Utilities;
+
+using Microsoft.EntityFrameworkCore;
+
+namespace Core.Services.Authentication;
+
+public class AuthenticationService
+{
+  private readonly AppDbContext _db;
+  private readonly PasswordHasher _hasher;
+  private readonly EmailTokenGenerator _emailTokens;
+
+  public AuthenticationService(AppDbContext db, PasswordHasher hasher, EmailTokenGenerator emailTokens)
+  {
+    _db = db;
+    _hasher = hasher;
+    _emailTokens = emailTokens;
+  }
+
+  public async Task<Result<User, RegisterUserError>> Register(string Username, string Email, string Password)
+  {
+    User user;
+
+    // Check if username or email exists
+    if (await _db.Users.AnyAsync(u => u.Username == Username))
+      return Result<User, RegisterUserError>.Fail(RegisterUserError.UsernameExists);
+
+    if (await _db.Users.AnyAsync(u => u.Email == Email))
+      return Result<User, RegisterUserError>.Fail(RegisterUserError.EmailExists);
+
+    // Hash password
+    var (hash, salt, iterations) = _hasher.HashPassword(Password);
+
+    user = new User
+    {
+      Username = Username,
+      Email = Email,
+      PasswordHash = hash,
+      PasswordSalt = salt,
+      PasswordIterations = iterations,
+      EmailConfirmed = false
+    };
+
+    _db.Users.Add(user);
+    await _db.SaveChangesAsync();
+
+    // Send email confirmation token
+    await SendEmailConfirmation(user.Id);
+
+    return Result<User, RegisterUserError>.Success(user);
+  }
+
+  public async Task<Result<User, LoginUserError>> Login(string Username, string Password)
+  {
+    var user = await _db.Users
+        .FirstOrDefaultAsync(u => u.Username == Username);
+
+    if (user == null)
+      return Result<User, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
+
+    // Check lockout
+    if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
+    {
+      var minutesLeft = (int)(user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes;
+      return Result<User, LoginUserError>.Fail(new LoginUserError("Lockout", $"Account locked. Try again in {minutesLeft} minutes."));
+    }
+
+    // Verify password
+    bool validPassword = _hasher.VerifyPassword(
+        Password,
+        user.PasswordSalt,
+        user.PasswordIterations,
+        user.PasswordHash
+    );
+
+    if (!validPassword)
+    {
+      user.FailedLoginAttempts++;
+
+      // Lock account if too many failures
+      if (user.FailedLoginAttempts >= AuthOptions.MaxFailedAttempts)
+      {
+        user.LockoutEnd = DateTime.UtcNow.Add(AuthOptions.LockoutDuration);
+        user.FailedLoginAttempts = 0; // reset counter after locking
+      }
+
+      await _db.SaveChangesAsync();
+      return Result<User, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
+    }
+
+    // TODO: 2FA, etc.
+
+    // Check if email confirmed
+    if (!user.EmailConfirmed)
+      return Result<User, LoginUserError>.Fail(LoginUserError.EmailNotConfirmed);
+
+    // Successful login → reset attempts
+    user.FailedLoginAttempts = 0;
+    user.LockoutEnd = null;
+    await _db.SaveChangesAsync();
+
+    return Result<User, LoginUserError>.Success(user);
+  }
+
+  public async Task<Result<NoResult, SendEmailConfirmationError>> SendEmailConfirmation(Guid userId)
+  {
+    var user = await _db.Users.FindAsync(userId);
+    if (user == null)
+      return Result<NoResult, SendEmailConfirmationError>.Fail(SendEmailConfirmationError.InvalidCredentials);
+
+    if (user.EmailConfirmed)
+      return Result<NoResult, SendEmailConfirmationError>.Fail(SendEmailConfirmationError.EmailAlreadyConfirmed);
+
+    string token = _emailTokens.GenerateEmailConfirmationToken(user.Id);
+
+    string confirmUrl = $"https://yourapp.com/auth/confirm-email?token={token}";
+
+    // TODO: send via email instead
+    Console.WriteLine("EMAIL CONFIRM LINK:");
+    Console.WriteLine(confirmUrl);
+
+    return Result<NoResult, SendEmailConfirmationError>.Success(new NoResult());
+  }
+
+  public async Task<Result<NoResult, ConfirmEmailError>> ConfirmEmail(string token)
+  {
+    var payload = _emailTokens.ValidateEmailConfirmationToken(token);
+
+    if (payload == null)
+      return Result<NoResult, ConfirmEmailError>.Fail(ConfirmEmailError.InvalidToken);
+
+    var user = await _db.Users.FindAsync(payload.UserId);
+    if (user == null)
+      return Result<NoResult, ConfirmEmailError>.Fail(ConfirmEmailError.UserNotFound);
+
+    if (user.EmailConfirmed)
+      return Result<NoResult, ConfirmEmailError>.Fail(ConfirmEmailError.EmailAlreadyConfirmed);
+
+    user.EmailConfirmed = true;
+    await _db.SaveChangesAsync();
+
+    return Result<NoResult, ConfirmEmailError>.Success(new NoResult());
+  }
+}

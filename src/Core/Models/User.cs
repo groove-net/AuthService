@@ -12,6 +12,9 @@ public class User
   public byte[] PasswordSalt { get; set; } = default!;
   public int PasswordIterations { get; set; }
 
+  public int FailedLoginAttempts { get; set; }
+  public DateTime? LockoutEnd { get; set; }
+
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
   public DateTime? UpdatedAt { get; set; }
 }
