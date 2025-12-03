@@ -2,6 +2,7 @@ using Core.Data;
 using Core.Models;
 using Core.Services.Authentication.Errors;
 using Core.Utilities;
+using Core.Utilities.EmailSender;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +13,14 @@ public class AuthenticationService
   private readonly AppDbContext _db;
   private readonly PasswordHasher _hasher;
   private readonly EmailTokenGenerator _emailTokens;
+  private readonly IEmailSender _email;
 
-  public AuthenticationService(AppDbContext db, PasswordHasher hasher, EmailTokenGenerator emailTokens)
+  public AuthenticationService(AppDbContext db, PasswordHasher hasher, EmailTokenGenerator emailTokens, IEmailSender email)
   {
     _db = db;
     _hasher = hasher;
     _emailTokens = emailTokens;
+    _email = email;
   }
 
   public async Task<Result<User, RegisterUserError>> Register(string Username, string Email, string Password)
@@ -118,9 +121,12 @@ public class AuthenticationService
 
     string confirmUrl = $"https://yourapp.com/auth/confirm-email?token={token}";
 
-    // TODO: send via email instead
     Console.WriteLine("EMAIL CONFIRM LINK:");
     Console.WriteLine(confirmUrl);
+    await _email.SendEmailAsync(
+        user.Email,
+        "Welcome!",
+        $"Thanks for registering! Here is your EMAIL CONFIRM LINK: {confirmUrl}");
 
     return Result<NoResult, SendEmailConfirmationError>.Success(new NoResult());
   }

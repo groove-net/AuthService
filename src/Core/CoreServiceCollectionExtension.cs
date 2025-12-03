@@ -1,6 +1,8 @@
 using Core.Data;
 using Core.Services.Authentication;
+using Core.Services.PasswordReset;
 using Core.Utilities;
+using Core.Utilities.EmailSender;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,9 @@ public static class CoreServiceCollectionExtensions
     ArgumentNullException.ThrowIfNull(configureDb);
     services.AddScoped<PasswordHasher>();
     services.AddScoped<EmailTokenGenerator>();
+    services.AddSingleton<SmtpOptions>();
+    services.AddScoped<PasswordResetService>();
+    services.AddSingleton<IEmailSender, SmtpEmailSender>();
     services.AddScoped<AuthenticationService>();
     services.AddDataProtection();
     services.AddDbContext<AppDbContext>(configureDb);

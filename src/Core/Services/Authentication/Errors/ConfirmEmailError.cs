@@ -1,4 +1,3 @@
-
 using Core.Models;
 
 namespace Core.Services.Authentication.Errors;
