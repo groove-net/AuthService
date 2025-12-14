@@ -9,6 +9,14 @@
     }
   },
   "profiles": {
+    "Docker": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://0.0.0.0:5134",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,

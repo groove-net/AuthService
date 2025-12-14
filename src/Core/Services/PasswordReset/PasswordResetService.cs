@@ -24,9 +24,20 @@ public class PasswordResetService
   // Create a token and persist its hash
   public async Task<Result<NoResult, CreatePasswordResetTokenForEmailError>> CreatePasswordResetTokenForEmailAsync(string email)
   {
+    // TODO: You may audit log here for account recovery investigations and abuse detection
+    //_audit.Log("PasswordResetRequested", user.Id, metadata: { ip, userAgent });
+
     var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
     if (user == null)
       return Result<NoResult, CreatePasswordResetTokenForEmailError>.Fail(CreatePasswordResetTokenForEmailError.UserNotFound);
+
+    var tooManyRecent = await _db.PasswordResetTokens
+    .Where(x => x.UserId == user.Id &&
+                x.CreatedAt > DateTime.UtcNow.AddMinutes(-5)) // lookback window
+    .CountAsync();
+
+    if (tooManyRecent >= 3)
+      return Result<NoResult, CreatePasswordResetTokenForEmailError>.Fail(CreatePasswordResetTokenForEmailError.TooManyRequests);
 
     string tokenString;
     byte[] tokenBytes;
@@ -55,7 +66,7 @@ public class PasswordResetService
     // Compose link. In production, use your real domain and email service.
     string resetUrl = $"https://yourapp.com/auth/reset-password?token={Uri.EscapeDataString(tokenString)}";
 
-    // TODO: Send email with the resetUrl. For dev, log it:
+    // Send email with the resetUrl. For dev, log it:
     Console.WriteLine("PASSWORD RESET LINK:");
     Console.WriteLine(resetUrl);
     await _email.SendEmailAsync(
@@ -94,6 +105,15 @@ public class PasswordResetService
     // Mark used (single-use)
     tokenEntry.Used = true;
 
+    // Invalidate all the user's other tokens
+    var others = _db.PasswordResetTokens
+        .Where(t => t.UserId == tokenEntry.UserId && !t.Used);
+    foreach (var other in others)
+      other.Used = true;
+
+    // TODO: You may audit log here for account recovery investigations and abuse detection
+    //_audit.Log("PasswordResetUsed", user.Id, metadata: { ip, userAgent });
+
     // Hash new password
     var (hash, salt, iterations) = _hasher.HashPassword(newPassword);
 
@@ -101,10 +121,7 @@ public class PasswordResetService
     tokenEntry.User.PasswordSalt = salt;
     tokenEntry.User.PasswordIterations = iterations;
     tokenEntry.User.UpdatedAt = DateTime.UtcNow;
-
-    // Optionally: revoke active sessions, refresh tokens, etc.
-    // Example: sign out user from cookie if you store sessions server-side
-    // Or increment a "SecurityStamp" to invalidate server session data
+    tokenEntry.User.SecurityStamp = Guid.NewGuid();
 
     await _db.SaveChangesAsync();
 

@@ -12,6 +12,9 @@ public class RequestPasswordResetEndpoint(PasswordResetService passwordResetServ
   {
     Post("/auth/request-password-reset");
     AllowAnonymous();
+
+    // Attach the rate-limiter policy HERE
+    Options(opt => opt.RequireRateLimiting("PasswordResetIPPolicy"));
   }
 
   public override async Task HandleAsync(RequestPasswordResetRequest req, CancellationToken ct)

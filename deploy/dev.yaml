@@ -1,0 +1,14 @@
+services:
+  WebAPI:
+    image: AuthService/webapi
+    ports:
+      - "5134:5134"
+    build:
+      context: ..
+      dockerfile: src/WebAPI/docker/run.Dockerfile
+    secrets:
+       - key
+
+secrets:
+   key:
+     file: ../src/WebAPI/secrets/key
