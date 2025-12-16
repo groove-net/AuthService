@@ -9,7 +9,7 @@ using QRCoder;
 
 namespace Core.Services.TwoFactor;
 
-public class TotpUtils
+public class TwoFactorUtils
 {
   private const int TotpStepSeconds = 30;    // Each TOTP code is valid for 30 seconds
   private const int TotpDigits = 6;          // Standard 6-digit code
@@ -18,14 +18,14 @@ public class TotpUtils
   private readonly AppDbContext _db;
   private readonly ISecretProtector _protector;  // Handles encrypting/decrypting secrets
 
-  public TotpUtils(AppDbContext db, ISecretProtector protector)
+  public TwoFactorUtils(AppDbContext db, ISecretProtector protector)
   {
     _db = db;
     _protector = protector;
   }
 
   // Generate a new base32 secret for 2FA (not yet enabled for user)
-  public string GenerateSecret()
+  private string GenerateSecret()
   {
     var secretBytes = RandomNumberGenerator.GetBytes(SecretSizeBytes);
     return Base32Encoding.ToString(secretBytes);

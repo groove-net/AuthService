@@ -73,6 +73,14 @@ public sealed class AesGcmSecretProtector : ISecretProtector
     if (protectedData == null)
       throw new ArgumentNullException(nameof(protectedData));
 
+    // convert URL-safe Base64 to standard
+    protectedData = protectedData.Replace('-', '+').Replace('_', '/');
+    switch (protectedData.Length % 4)
+    {
+      case 2: protectedData += "=="; break;
+      case 3: protectedData += "="; break;
+    }
+
     var payload = Convert.FromBase64String(protectedData);
 
     if (payload.Length < 1 + NonceSizeBytes + TagSizeBytes)

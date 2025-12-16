@@ -3,6 +3,7 @@ using Core.Models;
 using Core.Services.PasswordReset.Errors;
 using Core.Utilities;
 using Core.Utilities.EmailSender;
+using Microsoft.Extensions.Logging;
 
 using Microsoft.EntityFrameworkCore;
 namespace Core.Services.PasswordReset;
@@ -13,23 +14,26 @@ public class PasswordResetService
   private readonly PasswordHasher _hasher;
   private readonly IEmailSender _email;
   private readonly TimeSpan _tokenTtl = TimeSpan.FromHours(1); // adjust as needed
+  private readonly ILogger<PasswordResetService> _logger;
 
-  public PasswordResetService(AppDbContext db, PasswordHasher hasher, IEmailSender email)
+  public PasswordResetService(ILogger<PasswordResetService> logger, AppDbContext db, PasswordHasher hasher, IEmailSender email)
   {
     _db = db;
     _hasher = hasher;
     _email = email;
+    _logger = logger;
   }
 
   // Create a token and persist its hash
   public async Task<Result<NoResult, CreatePasswordResetTokenForEmailError>> CreatePasswordResetTokenForEmailAsync(string email)
   {
-    // TODO: You may audit log here for account recovery investigations and abuse detection
-    //_audit.Log("PasswordResetRequested", user.Id, metadata: { ip, userAgent });
 
     var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
     if (user == null)
       return Result<NoResult, CreatePasswordResetTokenForEmailError>.Fail(CreatePasswordResetTokenForEmailError.UserNotFound);
+
+    //  audit log here for account recovery investigations and abuse detection
+    _logger.LogTrace(message: $"Password reset request by {user.Username}"); // also consider logging metadata: { ip, userAgent })
 
     var tooManyRecent = await _db.PasswordResetTokens
     .Where(x => x.UserId == user.Id &&
@@ -111,8 +115,8 @@ public class PasswordResetService
     foreach (var other in others)
       other.Used = true;
 
-    // TODO: You may audit log here for account recovery investigations and abuse detection
-    //_audit.Log("PasswordResetUsed", user.Id, metadata: { ip, userAgent });
+    //  audit log here for account recovery investigations and abuse detection
+    _logger.LogTrace(message: $"Password reset used by {tokenEntry.User.Username}"); // also consider logging metadata: { ip, userAgent })
 
     // Hash new password
     var (hash, salt, iterations) = _hasher.HashPassword(newPassword);

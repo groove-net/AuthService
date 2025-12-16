@@ -30,8 +30,9 @@ public static class CoreServiceCollectionExtensions
       : "secrets/key").Trim();
     var keyBytes = Convert.FromBase64String(base64Key);
     services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(keyBytes));
+    services.AddScoped<TwoFactorUtils>();
+    services.AddScoped<TwoFactorChallenge>();
     services.AddScoped<TwoFactorService>();
-    services.AddScoped<TotpUtils>();
 
     services.AddDataProtection();
     services.AddDbContext<AppDbContext>(configureDb);

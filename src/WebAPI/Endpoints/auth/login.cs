@@ -4,8 +4,7 @@ using Core.Services.Authentication;
 namespace WebAPI.Endpoints.auth;
 
 public record LoginRequest(string Username, string Password);
-public record LoginResponse(Guid Id, string Username);
-public class LoginEndPoint(AuthenticationService authenticationService) : Endpoint<LoginRequest, LoginResponse>
+public class LoginEndPoint(AuthenticationService authenticationService) : Endpoint<LoginRequest, object>
 {
   private readonly AuthenticationService _authenticationService = authenticationService;
 
@@ -27,6 +26,6 @@ public class LoginEndPoint(AuthenticationService authenticationService) : Endpoi
       return;
     }
 
-    await Send.OkAsync(new LoginResponse(result.Value.Id, result.Value.Username));
+    await Send.OkAsync(result.Value);
   }
 }

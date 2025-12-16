@@ -25,6 +25,8 @@ public class User
   public string? RecoveryCodesHashJson { get; set; } // Store recovery codes hashed (comma-separated hex or another table). Example as JSON string:
   public string? PendingTwoFactorSecret { get; set; }
   public long? LastTotpStepUsed { get; set; }
+  public int TwoFactorFailureCount { get; set; }
+  public DateTime? TwoFactorLockoutUntil { get; set; }
 
   // Timestamps
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

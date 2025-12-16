@@ -3,6 +3,7 @@ using Core.Models;
 using Core.Services.Authentication.Errors;
 using Core.Utilities;
 using Core.Utilities.EmailSender;
+using Core.Services.TwoFactor;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -14,13 +15,15 @@ public class AuthenticationService
   private readonly PasswordHasher _hasher;
   private readonly EmailTokenGenerator _emailTokens;
   private readonly IEmailSender _email;
+  private readonly TwoFactorChallenge _twoFactorChallenge;
 
-  public AuthenticationService(AppDbContext db, PasswordHasher hasher, EmailTokenGenerator emailTokens, IEmailSender email)
+  public AuthenticationService(AppDbContext db, PasswordHasher hasher, EmailTokenGenerator emailTokens, IEmailSender email, TwoFactorChallenge twoFactorChallenge)
   {
     _db = db;
     _hasher = hasher;
     _emailTokens = emailTokens;
     _email = email;
+    _twoFactorChallenge = twoFactorChallenge;
   }
 
   public async Task<Result<User, RegisterUserError>> Register(string Username, string Email, string Password)
@@ -56,19 +59,19 @@ public class AuthenticationService
     return Result<User, RegisterUserError>.Success(user);
   }
 
-  public async Task<Result<User, LoginUserError>> Login(string Username, string Password)
+  public async Task<Result<object, LoginUserError>> Login(string Username, string Password)
   {
     var user = await _db.Users
         .FirstOrDefaultAsync(u => u.Username == Username);
 
     if (user == null)
-      return Result<User, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
+      return Result<object, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
 
     // Check lockout
     if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
     {
       var minutesLeft = (int)(user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes;
-      return Result<User, LoginUserError>.Fail(new LoginUserError("Lockout", $"Account locked. Try again in {minutesLeft} minutes."));
+      return Result<object, LoginUserError>.Fail(new LoginUserError("Lockout", $"Account locked. Try again in {minutesLeft} minutes."));
     }
 
     // Verify password
@@ -91,21 +94,33 @@ public class AuthenticationService
       }
 
       await _db.SaveChangesAsync();
-      return Result<User, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
+      return Result<object, LoginUserError>.Fail(LoginUserError.InvalidCredentials);
     }
-
-    // TODO: 2FA, etc.
-
-    // Check if email confirmed
-    if (!user.EmailConfirmed)
-      return Result<User, LoginUserError>.Fail(LoginUserError.EmailNotConfirmed);
 
     // Successful login → reset attempts
     user.FailedLoginAttempts = 0;
     user.LockoutEnd = null;
     await _db.SaveChangesAsync();
 
-    return Result<User, LoginUserError>.Success(user);
+    // Check if email confirmed
+    if (!user.EmailConfirmed)
+      return Result<object, LoginUserError>.Fail(LoginUserError.EmailNotConfirmed);
+
+    // --- 2FA step ---
+    if (user.TwoFactorEnabled)
+    {
+      var challengeToken = _twoFactorChallenge.Create(user.Id);
+      return Result<object, LoginUserError>.Success(new { ChallengeToken = challengeToken });
+    }
+
+    // No 2FA → return full user object
+    return Result<object, LoginUserError>
+      .Success(new
+      {
+        id = user.Id,
+        username = user.Username,
+        email = user.Email
+      });
   }
 
   public async Task<Result<NoResult, SendEmailConfirmationError>> SendEmailConfirmation(Guid userId)
