@@ -485,3 +485,7 @@ $RECYCLE.BIN/
 src/Core/auth_database.db
 src/Core/auth_database.db-shm
 src/Core/auth_database.db-wal
+src/Auth/WebAPI.REST/secrets
+src/Auth/secrets
+scratchPad.json
+src/Auth/database.db
