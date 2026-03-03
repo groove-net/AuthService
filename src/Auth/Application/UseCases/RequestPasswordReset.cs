@@ -4,9 +4,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define Response
-public record RequestPasswordResetResult();
-
 internal class RequestPasswordReset
 {
     private readonly IUserRepository _userRepository;
@@ -28,18 +25,18 @@ internal class RequestPasswordReset
 
     // 2. Handle method
     // Create a token and persist its hash
-    public async Task<Result<RequestPasswordResetResult, Error>> Handle(string email)
+    public async Task<Result<EmptyResult, Error>> Handle(string email)
     {
         // Validation
         var validation = new EmailValidator().Validate(email);
         if (!validation.IsValid)
-            return Result<RequestPasswordResetResult, Error>
+            return Result<EmptyResult, Error>
               .Fail(new Error("InvalidEmail", validation.Errors.First().ErrorMessage));
 
         // Get user
         var user = await _userRepository.FindByEmailAsync(email);
         if (user is null)
-            return Result<RequestPasswordResetResult, Error>.Fail(new("UserNotFound", "A user with the provided email address could not be found"));
+            return Result<EmptyResult, Error>.Fail(new("UserNotFound", "A user with the provided email address could not be found"));
 
         //  audit log here for account recovery investigations and abuse detection
         _logger.LogTrace(message: $"Password reset request by {user.Username}"); // also consider logging metadata: { ip, userAgent })
@@ -47,7 +44,7 @@ internal class RequestPasswordReset
         var tokensCreatedWithinLast5Minutes = await _userRepository.PasswordResetTokenCountWithinLastXMinutes(user.Id, 5);
 
         if (tokensCreatedWithinLast5Minutes >= 3)
-            return Result<RequestPasswordResetResult, Error>.Fail(new("TooManyRequests", "Too many password reset requests. Please wait before trying again."));
+            return Result<EmptyResult, Error>.Fail(new("TooManyRequests", "Too many password reset requests. Please wait before trying again."));
 
         string tokenString;
         byte[] tokenBytes;
@@ -68,7 +65,7 @@ internal class RequestPasswordReset
         user.AddDomainEvent(new PasswordResetTokenGrantedDomainEvent(user.Email, Uri.EscapeDataString(tokenString)));
         await _unitOfWork.SaveEntitiesAsync();
 
-        return Result<RequestPasswordResetResult, Error>.Success(new RequestPasswordResetResult());
+        return Result<EmptyResult, Error>.Success(new EmptyResult());
     }
 
     // Create URL-safe token string and return raw bytes too

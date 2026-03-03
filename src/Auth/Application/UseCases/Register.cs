@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.DataProtection;
 
 namespace Auth.Application;
 
-// 2. Define Response
-public record RegisterResult(Guid UserId);
-
 internal class Register
 {
     private readonly IUserRepository _userRepository;

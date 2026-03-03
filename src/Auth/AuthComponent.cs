@@ -90,11 +90,11 @@ public static class AuthComponent
     public static Task<Result<RegisterResult, Error>> Register(String username, String email, String password)
         => Execute<Register, Result<RegisterResult, Error>>(uc => uc.Handle(username, email, password));
 
-    public static Task<Result<ConfirmEmailResult, Error>> ConfirmEmail(String token)
-        => Execute<ConfirmEmail, Result<ConfirmEmailResult, Error>>(uc => uc.Handle(token));
+    public static Task<Result<EmptyResult, Error>> ConfirmEmail(String token)
+        => Execute<ConfirmEmail, Result<EmptyResult, Error>>(uc => uc.Handle(token));
 
-    public static Task<Result<ResendEmailConfirmationResult, Error>> ResendEmailConfirmation(String userEmail)
-        => Execute<ResendEmailConfirmation, Result<ResendEmailConfirmationResult, Error>>(uc => uc.Handle(userEmail));
+    public static Task<Result<EmptyResult, Error>> ResendEmailConfirmation(String userEmail)
+        => Execute<ResendEmailConfirmation, Result<EmptyResult, Error>>(uc => uc.Handle(userEmail));
 
     // --- AUTHENTICATION ---
 
@@ -109,11 +109,11 @@ public static class AuthComponent
 
     // --- PASSWORD RECOVERY ---
 
-    public static Task<Result<RequestPasswordResetResult, Error>> RequestPasswordReset(String email)
-        => Execute<RequestPasswordReset, Result<RequestPasswordResetResult, Error>>(uc => uc.Handle(email));
+    public static Task<Result<EmptyResult, Error>> RequestPasswordReset(String email)
+        => Execute<RequestPasswordReset, Result<EmptyResult, Error>>(uc => uc.Handle(email));
 
-    public static Task<Result<ResetPasswordResult, Error>> ResetPassword(String token, String newPassword)
-        => Execute<ResetPassword, Result<ResetPasswordResult, Error>>(uc => uc.Handle(token, newPassword));
+    public static Task<Result<EmptyResult, Error>> ResetPassword(String token, String newPassword)
+        => Execute<ResetPassword, Result<EmptyResult, Error>>(uc => uc.Handle(token, newPassword));
 
     // --- MFA MANAGEMENT ---
 
@@ -123,6 +123,39 @@ public static class AuthComponent
     public static Task<Result<Confirm2faResult, Error>> ConfirmTwoFactorSetup(Guid userId, String code)
         => Execute<Confirm2fa, Result<Confirm2faResult, Error>>(uc => uc.Handle(userId, code));
 
-    public static Task<Result<Disable2faResult, Error>> DisableTwoFactor(Guid userId)
-        => Execute<Disable2fa, Result<Disable2faResult, Error>>(uc => uc.Handle(userId));
+    public static Task<Result<EmptyResult, Error>> DisableTwoFactor(Guid userId)
+        => Execute<Disable2fa, Result<EmptyResult, Error>>(uc => uc.Handle(userId));
 }
+
+public record class Confirm2faResult(
+    IReadOnlyList<string> RecoveryCodes
+);
+
+public record class LoginResult(
+    Guid UserId,
+    string Username,
+    bool RequiresTwoFactore,
+    string? ChallengeToken
+);
+
+public record class RegisterResult(
+    Guid UserId
+);
+
+public record class Setup2faResult(
+    string QrCodeDataUrl
+);
+
+public record class UseRecoveryCodeResult
+(
+    Guid id,
+    string username,
+    string email
+);
+
+public record class Verify2faResult
+(
+    Guid id,
+    string username,
+    string email
+);

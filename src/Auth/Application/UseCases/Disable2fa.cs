@@ -3,9 +3,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Auth.Application;
 
-// 1. Define result value
-public record class Disable2faResult();
-
 internal class Disable2fa
 {
     private readonly IUserRepository _userRepository;
@@ -23,15 +20,15 @@ internal class Disable2fa
     }
 
     // 2. Disable2fa
-    public async Task<Result<Disable2faResult, Error>> Handle(Guid userId)
+    public async Task<Result<EmptyResult, Error>> Handle(Guid userId)
     {
         if (userId == Guid.Empty)
-            return Result<Disable2faResult, Error>
+            return Result<EmptyResult, Error>
               .Fail(new("EmptyUserId", "User Id cannot be empty"));
 
         var user = await _userRepository.FindByIdAsync(userId);
         if (user is null)
-            return Result<Disable2faResult, Error>
+            return Result<EmptyResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         // Disable and wipe all 2FA state
@@ -42,7 +39,7 @@ internal class Disable2fa
         //  audit log here for account recovery investigations and abuse detection
         _logger.LogInformation("2FA disabled by user={User}", user.Username); // also consider logging user metadata: { ip, userAgent })
 
-        return Result<Disable2faResult, Error>.Success(new Disable2faResult());
+        return Result<EmptyResult, Error>.Success(new EmptyResult());
     }
 }
 

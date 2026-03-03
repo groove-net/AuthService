@@ -4,9 +4,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define Response
-public record ResetPasswordResult();
-
 internal class ResetPassword
 {
     private readonly IUserRepository _userRepository;
@@ -28,12 +25,12 @@ internal class ResetPassword
 
     // 2. Handle method
     // Validate token: returns User if valid, and marks token as used
-    public async Task<Result<ResetPasswordResult, Error>> Handle(string tokenString, string newPassword)
+    public async Task<Result<EmptyResult, Error>> Handle(string tokenString, string newPassword)
     {
         // Validate
         var validation = new PasswordValidator().Validate(newPassword);
         if (!validation.IsValid)
-            return Result<ResetPasswordResult, Error>
+            return Result<EmptyResult, Error>
               .Fail(new Error("InvalidPassword", validation.Errors.First().ErrorMessage));
 
         // Hash token string
@@ -50,7 +47,7 @@ internal class ResetPassword
         // Get token and user
         var token = await _userRepository.GetPasswordResetTokenInfo(tokenHash);
         if (token is null || token.User is null || token.ExpiresAt < DateTime.UtcNow)
-            return Result<ResetPasswordResult, Error>.Fail(new("InvalidToken", "Invalid or expired token"));
+            return Result<EmptyResult, Error>.Fail(new("InvalidToken", "Invalid or expired token"));
         var user = token.User;
 
         // Mark used (single-use)
@@ -65,7 +62,7 @@ internal class ResetPassword
         // Saved changes to Db
         await _unitOfWork.SaveChangesAsync();
 
-        return Result<ResetPasswordResult, Error>.Success(new ResetPasswordResult());
+        return Result<EmptyResult, Error>.Success(new EmptyResult());
     }
 
     private static byte[] Sha256FromTokenString(string tokenString)

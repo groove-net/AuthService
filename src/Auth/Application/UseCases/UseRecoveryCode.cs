@@ -3,14 +3,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define result value
-public record class UseRecoveryCodeResult
-(
-    Guid id,
-    string username,
-    string email
-);
-
 internal class UseRecoveryCode
 {
     private readonly IUserRepository _userRepository;

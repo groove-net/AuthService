@@ -2,14 +2,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define result value
-public record class Verify2faResult
-(
-    Guid id,
-    string username,
-    string email
-);
-
 internal class Verify2fa
 {
     private readonly IUserRepository _userRepository;

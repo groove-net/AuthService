@@ -2,13 +2,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-public record class LoginResult(
-    Guid UserId,
-    string Username,
-    bool RequiresTwoFactore,
-    string? ChallengeToken
-);
-
 internal class Login
 {
     private readonly IUserRepository _userRepository;

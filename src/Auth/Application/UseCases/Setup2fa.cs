@@ -4,11 +4,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define result value
-public record class Setup2faResult(
-    string QrCodeDataUrl
-);
-
 internal class Setup2fa
 {
     private readonly IUserRepository _userRepository;

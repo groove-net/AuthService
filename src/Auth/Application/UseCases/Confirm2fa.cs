@@ -4,9 +4,6 @@ using Auth.Domain;
 
 namespace Auth.Application;
 
-// 1. Define result value
-public record class Confirm2faResult(IReadOnlyList<string> RecoveryCodes);
-
 internal class Confirm2fa
 {
     private readonly IUserRepository _userRepository;
