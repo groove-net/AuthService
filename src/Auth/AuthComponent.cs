@@ -2,6 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
+using Auth.Domain;
+using Auth.Application;
+using Auth.Infrastructure;
 
 namespace Auth;
 
@@ -14,7 +17,7 @@ public static class AuthComponent
         var services = new ServiceCollection();
 
         // 1. Databases
-        // The library must define its own connection string here
+        // The library must define its own connection String here
         services.AddDbContext<AuthDbContext>(options =>
             options.UseSqlite("Data Source=../database.db"));
         // Register the DbContext as the IUnitOfWork
@@ -32,6 +35,7 @@ public static class AuthComponent
             });
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
         services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
+        services.AddSingleton<IConfirmationTokenGenerator, ConfirmationTokenGenerator>();
         services.AddSingleton<ITwoFactorChallenge, TwoFactorChallenge>();
         var keyPath = File.Exists("/run/secrets/key") ? "/run/secrets/key" : "secrets/key";
         if (!File.Exists(keyPath))
@@ -46,6 +50,10 @@ public static class AuthComponent
             return provider.CreateProtector("AuthService.Default.Purpose");
         });
 
+        // 3. Domain Event Handlers
+        services.AddScoped<IDomainEventHandler<UserRegisteredDomainEvent>, UserRegisteredDomainEventHandler>();
+        services.AddScoped<IDomainEventHandler<PasswordResetTokenGrantedDomainEvent>, PasswordResetTokenGrantedDomainEventHandler>();
+
         // 3. Background services
         services.AddHostedService<PruneExpiredTokens>();
 
@@ -53,13 +61,13 @@ public static class AuthComponent
         services.AddScoped<Confirm2fa>();
         services.AddScoped<ConfirmEmail>();
         services.AddScoped<Disable2fa>();
-        services.AddScoped<EmailPasswordResetToken>();
-        services.AddScoped<RegisterUser>();
-        services.AddScoped<SendEmailConfirmation>();
+        services.AddScoped<RequestPasswordReset>();
+        services.AddScoped<Register>();
+        services.AddScoped<ResendEmailConfirmation>();
         services.AddScoped<Setup2fa>();
         services.AddScoped<UseRecoveryCode>();
-        services.AddScoped<UserLogin>();
-        services.AddScoped<ValidatePasswordResetToken>();
+        services.AddScoped<Login>();
+        services.AddScoped<ResetPassword>();
         services.AddScoped<Verify2fa>();
 
         _provider = services.BuildServiceProvider();
@@ -79,42 +87,42 @@ public static class AuthComponent
 
     // --- REGISTRATION & CONFIRMATION ---
 
-    public static Task<Result<RegisterUser.Value, Error>> RegisterUser(string username, string email, string password)
-        => Execute<RegisterUser, Result<RegisterUser.Value, Error>>(uc => uc.Handle(username, email, password));
+    public static Task<Result<RegisterResult, Error>> Register(String username, String email, String password)
+        => Execute<Register, Result<RegisterResult, Error>>(uc => uc.Handle(username, email, password));
 
-    public static Task<Result<ConfirmEmail.Value, Error>> ConfirmEmail(string token)
-        => Execute<ConfirmEmail, Result<ConfirmEmail.Value, Error>>(uc => uc.Handle(token));
+    public static Task<Result<ConfirmEmailResult, Error>> ConfirmEmail(String token)
+        => Execute<ConfirmEmail, Result<ConfirmEmailResult, Error>>(uc => uc.Handle(token));
 
-    public static Task<Result<SendEmailConfirmation.Value, Error>> ResendEmailConfirmation(Guid userId)
-        => Execute<SendEmailConfirmation, Result<SendEmailConfirmation.Value, Error>>(uc => uc.Handle(userId));
+    public static Task<Result<ResendEmailConfirmationResult, Error>> ResendEmailConfirmation(String userEmail)
+        => Execute<ResendEmailConfirmation, Result<ResendEmailConfirmationResult, Error>>(uc => uc.Handle(userEmail));
 
     // --- AUTHENTICATION ---
 
-    public static Task<Result<UserLogin.Value, Error>> Login(string username, string password)
-        => Execute<UserLogin, Result<UserLogin.Value, Error>>(uc => uc.Handle(username, password));
+    public static Task<Result<LoginResult, Error>> Login(String username, String password)
+        => Execute<Login, Result<LoginResult, Error>>(uc => uc.Handle(username, password));
 
-    public static Task<Result<Verify2fa.Value, Error>> VerifyTwoFactor(string challengeToken, string code)
-        => Execute<Verify2fa, Result<Verify2fa.Value, Error>>(uc => uc.Handle(challengeToken, code));
+    public static Task<Result<Verify2faResult, Error>> VerifyTwoFactor(String challengeToken, String code)
+        => Execute<Verify2fa, Result<Verify2faResult, Error>>(uc => uc.Handle(challengeToken, code));
 
-    public static Task<Result<UseRecoveryCode.Value, Error>> UseRecoveryCode(string challengeToken, string recoveryCode)
-        => Execute<UseRecoveryCode, Result<UseRecoveryCode.Value, Error>>(uc => uc.Handle(challengeToken, recoveryCode));
+    public static Task<Result<UseRecoveryCodeResult, Error>> UseRecoveryCode(String challengeToken, String recoveryCode)
+        => Execute<UseRecoveryCode, Result<UseRecoveryCodeResult, Error>>(uc => uc.Handle(challengeToken, recoveryCode));
 
     // --- PASSWORD RECOVERY ---
 
-    public static Task<Result<EmailPasswordResetToken.Value, Error>> RequestPasswordReset(string email)
-        => Execute<EmailPasswordResetToken, Result<EmailPasswordResetToken.Value, Error>>(uc => uc.Handle(email));
+    public static Task<Result<RequestPasswordResetResult, Error>> RequestPasswordReset(String email)
+        => Execute<RequestPasswordReset, Result<RequestPasswordResetResult, Error>>(uc => uc.Handle(email));
 
-    public static Task<Result<ValidatePasswordResetToken.Value, Error>> ResetPassword(string token, string newPassword)
-        => Execute<ValidatePasswordResetToken, Result<ValidatePasswordResetToken.Value, Error>>(uc => uc.Handle(token, newPassword));
+    public static Task<Result<ResetPasswordResult, Error>> ResetPassword(String token, String newPassword)
+        => Execute<ResetPassword, Result<ResetPasswordResult, Error>>(uc => uc.Handle(token, newPassword));
 
     // --- MFA MANAGEMENT ---
 
-    public static Task<Result<Setup2fa.Value, Error>> GetTwoFactorSetup(string issuer, Guid userId)
-        => Execute<Setup2fa, Result<Setup2fa.Value, Error>>(uc => uc.Handle(issuer, userId));
+    public static Task<Result<Setup2faResult, Error>> GetTwoFactorSetup(String issuer, Guid userId)
+        => Execute<Setup2fa, Result<Setup2faResult, Error>>(uc => uc.Handle(issuer, userId));
 
-    public static Task<Result<Confirm2fa.Value, Error>> ConfirmTwoFactorSetup(Guid userId, string code)
-        => Execute<Confirm2fa, Result<Confirm2fa.Value, Error>>(uc => uc.Handle(userId, code));
+    public static Task<Result<Confirm2faResult, Error>> ConfirmTwoFactorSetup(Guid userId, String code)
+        => Execute<Confirm2fa, Result<Confirm2faResult, Error>>(uc => uc.Handle(userId, code));
 
-    public static Task<Result<Disable2fa.Value, Error>> DisableTwoFactor(Guid userId)
-        => Execute<Disable2fa, Result<Disable2fa.Value, Error>>(uc => uc.Handle(userId));
+    public static Task<Result<Disable2faResult, Error>> DisableTwoFactor(Guid userId)
+        => Execute<Disable2fa, Result<Disable2faResult, Error>>(uc => uc.Handle(userId));
 }

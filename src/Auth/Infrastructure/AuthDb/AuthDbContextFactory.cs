@@ -1,7 +1,10 @@
+using Auth.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-public class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbContext>
+namespace Auth.Infrastructure;
+
+internal class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbContext>
 {
     public AuthDbContext CreateDbContext(string[] args)
     {

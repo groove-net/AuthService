@@ -1,6 +1,13 @@
 using Microsoft.Extensions.Logging;
 
-public class Confirm2fa
+using Auth.Domain;
+
+namespace Auth.Application;
+
+// 1. Define result value
+public record class Confirm2faResult(IReadOnlyList<string> RecoveryCodes);
+
+internal class Confirm2fa
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -19,33 +26,30 @@ public class Confirm2fa
         _protector = protector;
     }
 
-    // 1. Define result value
-    public record class Value(IReadOnlyList<string> RecoveryCodes);
-
     // 2) Confirm the TOTP code to enable 2FA (user must be authenticated)
-    public async Task<Result<Value, Error>> Handle(Guid userId, string code)
+    public async Task<Result<Confirm2faResult, Error>> Handle(Guid userId, string code)
     {
         if (userId == Guid.Empty)
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
               .Fail(new("EmptyUserId", "User Id cannot be empty"));
 
         if (string.IsNullOrWhiteSpace(code))
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
               .Fail(new("NullOrEmptyCode", "Code cannot be null or empty"));
 
         var user = await _userRepository.FindByIdAsync(userId);
         if (user is null)
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         // 2FA already enabled
         if (user.TwoFactorEnabled)
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
                 .Fail(new("TwoFactorAlreadyEnabled", "2FA already enabled"));
 
         // Must have begun enrollment first
         if (user.PendingTwoFactorSecret == null)
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
                 .Fail(new("TwoFactorNotInitialized", "2FA setup not initialized"));
 
         // Confirm enrollment (verifies TOTP + enables 2FA)
@@ -53,7 +57,7 @@ public class Confirm2fa
         var confirmed = user.ConfirmTwoFactorEnrollmentAsync(secret, code);
 
         if (!confirmed)
-            return Result<Value, Error>
+            return Result<Confirm2faResult, Error>
                 .Fail(new("InvalidCode", "Invalid code"));
 
         // Generate recovery codes AFTER successful confirmation
@@ -64,8 +68,8 @@ public class Confirm2fa
         //  audit log here for account recovery investigations and abuse detection
         _logger.LogInformation("2FA enabled by user={User}", user.Username); // also consider logging user metadata: { ip, userAgent })
 
-        return Result<Value, Error>
-          .Success(new Value
+        return Result<Confirm2faResult, Error>
+          .Success(new Confirm2faResult
           (
               recoveryCodes
           ));

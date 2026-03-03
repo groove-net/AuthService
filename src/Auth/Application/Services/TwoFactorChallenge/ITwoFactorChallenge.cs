@@ -1,4 +1,8 @@
-public interface ITwoFactorChallenge
+using Auth.Domain;
+
+namespace Auth.Application;
+
+internal interface ITwoFactorChallenge
 {
     record Payload
     {

@@ -1,4 +1,6 @@
-public class PasswordResetToken : Entity
+namespace Auth.Domain;
+
+internal class PasswordResetToken : Entity
 {
     public Byte[] TokenHash { get; private set; } // SHA256 hash of the token
     public DateTime ExpiresAt { get; private set; }

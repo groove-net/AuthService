@@ -1,6 +1,9 @@
+using Auth.Domain;
 using Microsoft.EntityFrameworkCore;
 
-public class UserRepository : IUserRepository
+namespace Auth.Infrastructure;
+
+internal class UserRepository : IUserRepository, IDisposable
 {
     private readonly AuthDbContext _context;
 
@@ -75,5 +78,25 @@ public class UserRepository : IUserRepository
         // We query the tokens directly for performance rather than loading the User aggregate
         return await _context.Set<PasswordResetToken>()
             .CountAsync(t => t.User!.Id == id && t.CreatedAt >= threshold);
+    }
+
+    private bool disposed = false;
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!this.disposed)
+        {
+            if (disposing)
+            {
+                _context.Dispose();
+            }
+        }
+        this.disposed = true;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

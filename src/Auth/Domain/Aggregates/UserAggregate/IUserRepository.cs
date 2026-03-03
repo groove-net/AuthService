@@ -1,4 +1,6 @@
-public interface IUserRepository : IRepository<User>
+namespace Auth.Domain;
+
+internal interface IUserRepository : IRepository<User>
 {
     Task<Boolean> ExistsByUsernameAsync(String username);
     Task<Boolean> ExistsByEmailAsync(String email);

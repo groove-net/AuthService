@@ -1,4 +1,16 @@
-public class Verify2fa
+using Auth.Domain;
+
+namespace Auth.Application;
+
+// 1. Define result value
+public record class Verify2faResult
+(
+    Guid id,
+    string username,
+    string email
+);
+
+internal class Verify2fa
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -16,39 +28,31 @@ public class Verify2fa
         _twoFactorChallenge = new(protector);
     }
 
-    // 1. Define result value
-    public record class Value
-    (
-        Guid id,
-        string username,
-        string email
-    );
-
     // 2. During login: verify TOTP using challenge token
     // After password verification, if user.TwoFactorEnabled => you should return a challenge token from login endpoint.
     // Here's the verify endpoint that consumes the challenge token and TOTP code, then signs in.
-    public async Task<Result<Value, Error>> Handle(string challengeToken, string code)
+    public async Task<Result<Verify2faResult, Error>> Handle(string challengeToken, string code)
     {
         // Validate code
         if (string.IsNullOrWhiteSpace(code))
-            return Result<Value, Error>
+            return Result<Verify2faResult, Error>
               .Fail(new("NullOrEmptyCode", "Code cannot be null or empty"));
 
         // Validate challenge token
         var challengeResult = _twoFactorChallenge.Validate(challengeToken);
         if (!challengeResult.IsSuccess || challengeResult.Value == null)
-            return Result<Value, Error>
+            return Result<Verify2faResult, Error>
               .Fail(challengeResult.Error!);
 
         // Load user
         var user = await _userRepository.FindByIdAsync(challengeResult.Value.UserId);
         if (user is null)
-            return Result<Value, Error>
+            return Result<Verify2faResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         // Verify TOTP code
         if (user.Is2faLocked())
-            return Result<Value, Error>
+            return Result<Verify2faResult, Error>
               .Fail(new("Locked", "Too many failed attempts"));
 
         bool ok;
@@ -66,7 +70,7 @@ public class Verify2fa
         {
             user.Register2faFailure();
             await _unitOfWork.SaveChangesAsync();
-            return Result<Value, Error>
+            return Result<Verify2faResult, Error>
               .Fail(new("InvalidTwoFactorCode", "Invalid 2FA code"));
         }
 
@@ -74,8 +78,8 @@ public class Verify2fa
         await _unitOfWork.SaveChangesAsync();
 
         // Build final result
-        return Result<Value, Error>
-          .Success(new Value
+        return Result<Verify2faResult, Error>
+          .Success(new Verify2faResult
           (
               user.Id,
               user.Username,

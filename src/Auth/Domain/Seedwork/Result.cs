@@ -1,3 +1,5 @@
+namespace Auth.Domain;
+
 public record class Result<TValue, TError>
 {
     public TValue? Value { get; init; }

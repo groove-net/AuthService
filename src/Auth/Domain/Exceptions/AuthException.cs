@@ -1,7 +1,9 @@
+namespace Auth.Domain;
+
 /// <summary>
 /// Exception type for domain exceptions
 /// </summary>
-public class AuthException : Exception
+internal class AuthException : Exception
 {
     public AuthException()
     { }

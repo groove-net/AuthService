@@ -1,7 +1,10 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Auth.Domain;
 
-public class PruneExpiredTokens : BackgroundService
+namespace Auth.Application;
+
+internal class PruneExpiredTokens : BackgroundService
 {
     private readonly IUserRepository _userRepository;
     private readonly ILogger<PruneExpiredTokens> _logger;

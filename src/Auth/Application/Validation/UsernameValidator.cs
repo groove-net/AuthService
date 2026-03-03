@@ -1,6 +1,8 @@
 using FluentValidation;
 
-public class UsernameValidator : AbstractValidator<String>
+namespace Auth.Application;
+
+internal class UsernameValidator : AbstractValidator<String>
 {
     public UsernameValidator()
     {

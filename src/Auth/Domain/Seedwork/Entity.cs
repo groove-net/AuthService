@@ -1,4 +1,6 @@
 // COMPATIBLE WITH ENTITY FRAMEWORK CORE (1.1 and later)
+namespace Auth.Domain;
+
 public abstract class Entity
 {
     int? _requestedHashCode;

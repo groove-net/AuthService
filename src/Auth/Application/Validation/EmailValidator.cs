@@ -1,6 +1,8 @@
 using FluentValidation;
 
-public class EmailValidator : AbstractValidator<String>
+namespace Auth.Application;
+
+internal class EmailValidator : AbstractValidator<String>
 {
     public EmailValidator()
     {

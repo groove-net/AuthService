@@ -1,6 +1,12 @@
+using Auth.Domain;
 using Microsoft.Extensions.Logging;
 
-public class Disable2fa
+namespace Auth.Application;
+
+// 1. Define result value
+public record class Disable2faResult();
+
+internal class Disable2fa
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -16,19 +22,16 @@ public class Disable2fa
         _logger = logger;
     }
 
-    // 1. Define result value
-    public record class Value();
-
     // 2. Disable2fa
-    public async Task<Result<Value, Error>> Handle(Guid userId)
+    public async Task<Result<Disable2faResult, Error>> Handle(Guid userId)
     {
         if (userId == Guid.Empty)
-            return Result<Value, Error>
+            return Result<Disable2faResult, Error>
               .Fail(new("EmptyUserId", "User Id cannot be empty"));
 
         var user = await _userRepository.FindByIdAsync(userId);
         if (user is null)
-            return Result<Value, Error>
+            return Result<Disable2faResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         // Disable and wipe all 2FA state
@@ -39,7 +42,7 @@ public class Disable2fa
         //  audit log here for account recovery investigations and abuse detection
         _logger.LogInformation("2FA disabled by user={User}", user.Username); // also consider logging user metadata: { ip, userAgent })
 
-        return Result<Value, Error>.Success(new Value());
+        return Result<Disable2faResult, Error>.Success(new Disable2faResult());
     }
 }
 

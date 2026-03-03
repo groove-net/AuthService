@@ -1,19 +1,24 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
+using Auth.Domain;
 
-public class ValidatePasswordResetToken
+namespace Auth.Application;
+
+// 1. Define Response
+public record ResetPasswordResult();
+
+internal class ResetPassword
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailSender _emailSender;
-    private readonly ILogger<EmailPasswordResetToken> _logger;
-    private readonly TimeSpan _tokenTtl = TimeSpan.FromHours(1); // adjust as needed
+    private readonly ILogger<ResetPassword> _logger;
 
-    public ValidatePasswordResetToken(
+    public ResetPassword(
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         IEmailSender emailSender,
-        ILogger<EmailPasswordResetToken> logger)
+        ILogger<ResetPassword> logger)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
@@ -21,17 +26,14 @@ public class ValidatePasswordResetToken
         _logger = logger;
     }
 
-    // 1. Define Response
-    public record Value();
-
     // 2. Handle method
     // Validate token: returns User if valid, and marks token as used
-    public async Task<Result<Value, Error>> Handle(string tokenString, string newPassword)
+    public async Task<Result<ResetPasswordResult, Error>> Handle(string tokenString, string newPassword)
     {
         // Validate
         var validation = new PasswordValidator().Validate(newPassword);
         if (!validation.IsValid)
-            return Result<Value, Error>
+            return Result<ResetPasswordResult, Error>
               .Fail(new Error("InvalidPassword", validation.Errors.First().ErrorMessage));
 
         // Hash token string
@@ -48,7 +50,7 @@ public class ValidatePasswordResetToken
         // Get token and user
         var token = await _userRepository.GetPasswordResetTokenInfo(tokenHash);
         if (token is null || token.User is null || token.ExpiresAt < DateTime.UtcNow)
-            return Result<Value, Error>.Fail(new("InvalidToken", "Invalid or expired token"));
+            return Result<ResetPasswordResult, Error>.Fail(new("InvalidToken", "Invalid or expired token"));
         var user = token.User;
 
         // Mark used (single-use)
@@ -58,12 +60,12 @@ public class ValidatePasswordResetToken
         _logger.LogTrace(message: $"Password reset used by {user.Username}"); // also consider logging metadata: { ip, userAgent })
 
         // Change password
-        user.ChangePassword(newPassword);
+        user.ResetPassword(newPassword);
 
         // Saved changes to Db
         await _unitOfWork.SaveChangesAsync();
 
-        return Result<Value, Error>.Success(new Value());
+        return Result<ResetPasswordResult, Error>.Success(new ResetPasswordResult());
     }
 
     private static byte[] Sha256FromTokenString(string tokenString)

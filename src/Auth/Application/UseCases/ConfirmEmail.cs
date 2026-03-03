@@ -1,77 +1,51 @@
-using Microsoft.AspNetCore.DataProtection;
-using System.Text.Json;
+using Auth.Domain;
 
-public class ConfirmEmail
+namespace Auth.Application;
+
+// 1. Define Response
+public record ConfirmEmailResult();
+
+internal class ConfirmEmail
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IDataProtector _protector;
+    private readonly IConfirmationTokenGenerator _confirmationTokenGenerator;
 
     public ConfirmEmail(
-          IUserRepository userRepository,
-          IUnitOfWork unitOfWork,
-          IDataProtector protector)
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
+        IConfirmationTokenGenerator confirmationTokenGenerator)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
-        _protector = protector;
+        _confirmationTokenGenerator = confirmationTokenGenerator;
     }
 
-    // 1. Define Response
-    public record Value();
-
     // 2. Handle method
-    public async Task<Result<Value, Error>> Handle(string token)
+    public async Task<Result<ConfirmEmailResult, Error>> Handle(String token)
     {
-        var payload = ValidateEmailConfirmationToken(token);
+        var payload = _confirmationTokenGenerator.ValidateConfirmationToken(token);
 
         if (payload == null)
-            return Result<Value, Error>
+            return Result<ConfirmEmailResult, Error>
               .Fail(new("InvalidToken", "Invalid token"));
 
         var user = await _userRepository.FindByIdAsync(payload.UserId);
         if (user is null)
-            return Result<Value, Error>
+            return Result<ConfirmEmailResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         if (user.EmailConfirmed)
-            return Result<Value, Error>
+            return Result<ConfirmEmailResult, Error>
               .Fail(new("EmailAlreadyConfirmed", "Email already confirmed"));
 
         if (!string.Equals(user.Email, payload.UserEmail, StringComparison.OrdinalIgnoreCase))
-            return Result<Value, Error>
+            return Result<ConfirmEmailResult, Error>
               .Fail(new Error("StaleToken", "This confirmation link is no longer valid because the email address has changed."));
 
         user.ConfirmEmail();
         await _unitOfWork.SaveChangesAsync();
 
-        return Result<Value, Error>.Success(new Value());
+        return Result<ConfirmEmailResult, Error>.Success(new ConfirmEmailResult());
     }
-
-    private class EmailTokenPayload
-    {
-        public Guid UserId { get; set; }
-        public String UserEmail { get; set; } = default!;
-        public DateTime ExpiresAt { get; set; }
-    }
-    private EmailTokenPayload? ValidateEmailConfirmationToken(string token)
-    {
-        try
-        {
-            string protectedData = Uri.UnescapeDataString(token);
-            string json = _protector.Unprotect(protectedData);
-
-            var payload = JsonSerializer.Deserialize<EmailTokenPayload>(json);
-
-            if (payload == null || payload.ExpiresAt < DateTime.UtcNow)
-                return null;
-
-            return payload;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
 }

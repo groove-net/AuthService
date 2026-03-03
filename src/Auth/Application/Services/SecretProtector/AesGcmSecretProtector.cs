@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 
-public sealed class AesGcmSecretProtector : ISecretProtector
+namespace Auth.Application;
+
+internal sealed class AesGcmSecretProtector : ISecretProtector
 {
     // Versioning allows future crypto migration
     private const byte Version = 1;

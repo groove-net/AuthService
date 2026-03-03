@@ -1,18 +1,24 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
+using Auth.Domain;
 
-public class EmailPasswordResetToken
+namespace Auth.Application;
+
+// 1. Define Response
+public record RequestPasswordResetResult();
+
+internal class RequestPasswordReset
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailSender _emailSender;
-    private readonly ILogger<EmailPasswordResetToken> _logger;
+    private readonly ILogger<RequestPasswordReset> _logger;
 
-    public EmailPasswordResetToken(
+    public RequestPasswordReset(
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         IEmailSender emailSender,
-        ILogger<EmailPasswordResetToken> logger)
+        ILogger<RequestPasswordReset> logger)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
@@ -20,23 +26,20 @@ public class EmailPasswordResetToken
         _logger = logger;
     }
 
-    // 1. Define Response
-    public record Value();
-
     // 2. Handle method
     // Create a token and persist its hash
-    public async Task<Result<Value, Error>> Handle(string email)
+    public async Task<Result<RequestPasswordResetResult, Error>> Handle(string email)
     {
         // Validation
         var validation = new EmailValidator().Validate(email);
         if (!validation.IsValid)
-            return Result<Value, Error>
+            return Result<RequestPasswordResetResult, Error>
               .Fail(new Error("InvalidEmail", validation.Errors.First().ErrorMessage));
 
         // Get user
         var user = await _userRepository.FindByEmailAsync(email);
         if (user is null)
-            return Result<Value, Error>.Fail(new("UserNotFound", "A user with the provided email address could not be found"));
+            return Result<RequestPasswordResetResult, Error>.Fail(new("UserNotFound", "A user with the provided email address could not be found"));
 
         //  audit log here for account recovery investigations and abuse detection
         _logger.LogTrace(message: $"Password reset request by {user.Username}"); // also consider logging metadata: { ip, userAgent })
@@ -44,7 +47,7 @@ public class EmailPasswordResetToken
         var tokensCreatedWithinLast5Minutes = await _userRepository.PasswordResetTokenCountWithinLastXMinutes(user.Id, 5);
 
         if (tokensCreatedWithinLast5Minutes >= 3)
-            return Result<Value, Error>.Fail(new("TooManyRequests", "Too many password reset requests. Please wait before trying again."));
+            return Result<RequestPasswordResetResult, Error>.Fail(new("TooManyRequests", "Too many password reset requests. Please wait before trying again."));
 
         string tokenString;
         byte[] tokenBytes;
@@ -62,20 +65,10 @@ public class EmailPasswordResetToken
         var pr = new PasswordResetToken(tokenHash);
 
         user.GrantPasswordResetToken(pr);
-        await _unitOfWork.SaveChangesAsync();
+        user.AddDomainEvent(new PasswordResetTokenGrantedDomainEvent(user.Email, Uri.EscapeDataString(tokenString)));
+        await _unitOfWork.SaveEntitiesAsync();
 
-        // Compose link. In production, use your real domain and email service.
-        string resetUrl = $"https://yourapp.com/auth/reset-password?token={Uri.EscapeDataString(tokenString)}";
-
-        // Send email with the resetUrl. For dev, log it:
-        Console.WriteLine("PASSWORD RESET LINK:");
-        Console.WriteLine(resetUrl);
-        await _emailSender.SendEmailAsync(
-            user.Email,
-            "Password Reset!",
-            $"Thanks for registering! Here is your PASSWORD RESET LINK: {resetUrl}");
-
-        return Result<Value, Error>.Success(new Value());
+        return Result<RequestPasswordResetResult, Error>.Success(new RequestPasswordResetResult());
     }
 
     // Create URL-safe token string and return raw bytes too

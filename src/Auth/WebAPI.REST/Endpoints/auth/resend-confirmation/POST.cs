@@ -11,10 +11,10 @@ public class ResendConfirmationEndPoint : Endpoint<ResendConfirmationEndPoint.Re
         AllowAnonymous();
     }
 
-    public record class Req(Guid userId);
+    public record class Req(String userEmail);
     public override async Task HandleAsync(ResendConfirmationEndPoint.Req req, CancellationToken ct)
     {
-        var result = await AuthComponent.ResendEmailConfirmation(req.userId);
+        var result = await AuthComponent.ResendEmailConfirmation(req.userEmail);
 
         if (!result.IsSuccess || result.Value == null)
         {

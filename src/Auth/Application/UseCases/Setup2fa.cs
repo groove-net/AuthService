@@ -1,7 +1,15 @@
 using System.Security.Cryptography;
 using OtpNet;
+using Auth.Domain;
 
-public class Setup2fa
+namespace Auth.Application;
+
+// 1. Define result value
+public record class Setup2faResult(
+    string QrCodeDataUrl
+);
+
+internal class Setup2fa
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -18,25 +26,20 @@ public class Setup2fa
         _protector = protector;
     }
 
-    // 1. Define result value
-    public record class Value(
-        string QrCodeDataUrl
-    );
-
     // 2. Generate a secret + provisioning QR (user must be authenticated)
-    public async Task<Result<Value, Error>> Handle(String issuer, Guid userId)
+    public async Task<Result<Setup2faResult, Error>> Handle(String issuer, Guid userId)
     {
         if (string.IsNullOrWhiteSpace(issuer))
-            return Result<Value, Error>
+            return Result<Setup2faResult, Error>
               .Fail(new("NullOrEmptyIssuer", "Issuer cannot be null or empty"));
 
         if (userId == Guid.Empty)
-            return Result<Value, Error>
+            return Result<Setup2faResult, Error>
               .Fail(new("EmptyUserId", "User Id cannot be empty"));
 
         var user = await _userRepository.FindByIdAsync(userId);
         if (user is null)
-            return Result<Value, Error>
+            return Result<Setup2faResult, Error>
               .Fail(new("UserNotFound", "User not found"));
 
         // Generate secret and store temporarily in PendingTwoFactorSecret
@@ -45,8 +48,8 @@ public class Setup2fa
 
         await _unitOfWork.SaveChangesAsync();
 
-        return Result<Value, Error>
-          .Success(new Value(
+        return Result<Setup2faResult, Error>
+          .Success(new Setup2faResult(
               $"data:image/png;base64,{qrDataUrl}"
           ));
     }

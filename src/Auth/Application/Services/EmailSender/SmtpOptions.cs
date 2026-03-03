@@ -1,4 +1,6 @@
-public class SmtpOptions
+namespace Auth.Application;
+
+internal class SmtpOptions
 {
     public string Host { get; set; } = "smtp.gmail.com";
     public int Port { get; set; } = 587;

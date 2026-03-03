@@ -1,6 +1,9 @@
 using System.Text.Json;
+using Auth.Domain;
 
-public class TwoFactorChallenge : ITwoFactorChallenge
+namespace Auth.Application;
+
+internal class TwoFactorChallenge : ITwoFactorChallenge
 {
     private readonly ISecretProtector _protector; // for short-lived 2FA challenge tokens
 

@@ -14,7 +14,7 @@ public class RegisterEndpoint : Endpoint<RegisterEndpoint.Req, object>
     public record class Req(string username, string email, string password);
     public override async Task HandleAsync(RegisterEndpoint.Req req, CancellationToken ct)
     {
-        var result = await AuthComponent.RegisterUser(req.username, req.email, req.password);
+        var result = await AuthComponent.Register(req.username, req.email, req.password);
 
         if (!result.IsSuccess || result.Value == null)
         {

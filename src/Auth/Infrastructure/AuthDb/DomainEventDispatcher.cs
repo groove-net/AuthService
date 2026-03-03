@@ -1,11 +1,15 @@
+using Auth.Domain;
+using Auth.Application;
 using Microsoft.Extensions.DependencyInjection;
 
-public interface IDomainEventDispatcher
+namespace Auth.Infrastructure;
+
+internal interface IDomainEventDispatcher
 {
     Task DispatchDomainEventsAsync(IEnumerable<Entity> entities, CancellationToken ct);
 }
 
-public class DomainEventDispatcher : IDomainEventDispatcher
+internal class DomainEventDispatcher : IDomainEventDispatcher
 {
     private readonly IServiceProvider _serviceProvider;
 

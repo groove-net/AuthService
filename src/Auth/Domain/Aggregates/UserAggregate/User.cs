@@ -5,7 +5,9 @@ using System.Text.Json;
 using OtpNet;
 using QRCoder;
 
-public class User : Entity, IAggregateRoot
+namespace Auth.Domain;
+
+internal class User : Entity, IAggregateRoot
 {
     public String Username { get; private set; }
     public String Email { get; private set; }
@@ -47,7 +49,15 @@ public class User : Entity, IAggregateRoot
     public ICollection<PasswordResetToken> PasswordResetTokens { get; }
 
     // Constructor
-    private User() { } // EF Core uses this via reflection
+    private User() // EF Core uses this via reflection
+    {
+        Username = default!;
+        Email = default!;
+        PasswordHash = default!;
+        PasswordSalt = default!;
+        PasswordResetTokens = [];
+    }
+
     public User(String username, String email, String password)
     {
         Username = username;
@@ -96,7 +106,7 @@ public class User : Entity, IAggregateRoot
         return true;
     }
 
-    public void ChangePassword(String newPassword)
+    public void ResetPassword(String newPassword)
     {
         (PasswordHash, PasswordSalt) = HashPassword(newPassword);
         UpdatedAt = DateTime.UtcNow;

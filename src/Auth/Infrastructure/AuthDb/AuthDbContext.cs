@@ -1,8 +1,11 @@
+using Auth.Domain;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
-public class AuthDbContext : DbContext, IUnitOfWork
+namespace Auth.Infrastructure;
+
+internal class AuthDbContext : DbContext, IUnitOfWork
 {
     public DbSet<User> Users { get; set; } = default!;
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; } = default!;
