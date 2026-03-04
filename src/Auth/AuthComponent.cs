@@ -28,13 +28,7 @@ public static class AuthComponent
         services.AddScoped<IUserRepository, UserRepository>();
 
         // 2. Application Interfaces & Infrastructure
-        services.AddLogging(builder => // Configure logging
-            {
-                builder.AddConsole(); // Tells the library to write to the terminal
-                builder.SetMinimumLevel(LogLevel.Information); // Control the "noise" level
-            });
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
-        services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
         services.AddSingleton<IConfirmationTokenGenerator, ConfirmationTokenGenerator>();
         services.AddSingleton<ITwoFactorChallenge, TwoFactorChallenge>();
         var keyPath = File.Exists("/run/secrets/key") ? "/run/secrets/key" : "secrets/key";
@@ -43,6 +37,11 @@ public static class AuthComponent
         var base64Key = File.ReadAllText(keyPath).Trim();
         var keyBytes = Convert.FromBase64String(base64Key);
         services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(keyBytes));
+        services.AddLogging(builder => // Configure logging
+        {
+            builder.AddConsole(); // Tells the library to write to the terminal
+            builder.SetMinimumLevel(LogLevel.Information); // Control the "noise" level
+        });
         services.AddDataProtection();
         services.AddScoped<IDataProtector>(sp =>
         {
@@ -87,45 +86,48 @@ public static class AuthComponent
 
     // --- REGISTRATION & CONFIRMATION ---
 
-    public static Task<Result<RegisterResult, Error>> Register(String username, String email, String password)
-        => Execute<Register, Result<RegisterResult, Error>>(uc => uc.Handle(username, email, password));
+    public static async Task<Result<RegisterResult, Error>> Register(String username, String email, String password)
+        => await Execute<Register, Result<RegisterResult, Error>>(uc => uc.Handle(username, email, password));
 
-    public static Task<Result<EmptyResult, Error>> ConfirmEmail(String token)
-        => Execute<ConfirmEmail, Result<EmptyResult, Error>>(uc => uc.Handle(token));
+    public static async Task<Result<EmptyResult, Error>> ConfirmEmail(String token)
+        => await Execute<ConfirmEmail, Result<EmptyResult, Error>>(uc => uc.Handle(token));
 
-    public static Task<Result<EmptyResult, Error>> ResendEmailConfirmation(String userEmail)
-        => Execute<ResendEmailConfirmation, Result<EmptyResult, Error>>(uc => uc.Handle(userEmail));
+    public static async Task<Result<EmptyResult, Error>> ResendEmailConfirmation(String userEmail)
+        => await Execute<ResendEmailConfirmation, Result<EmptyResult, Error>>(uc => uc.Handle(userEmail));
 
     // --- AUTHENTICATION ---
 
-    public static Task<Result<LoginResult, Error>> Login(String username, String password)
-        => Execute<Login, Result<LoginResult, Error>>(uc => uc.Handle(username, password));
+    public static async Task<Result<LoginResult, Error>> Login(String username, String password)
+        => await Execute<Login, Result<LoginResult, Error>>(uc => uc.Handle(username, password));
 
-    public static Task<Result<Verify2faResult, Error>> VerifyTwoFactor(String challengeToken, String code)
-        => Execute<Verify2fa, Result<Verify2faResult, Error>>(uc => uc.Handle(challengeToken, code));
+    public static async Task<Result<Verify2faResult, Error>> VerifyTwoFactor(String challengeToken, String code)
+        => await Execute<Verify2fa, Result<Verify2faResult, Error>>(uc => uc.Handle(challengeToken, code));
 
-    public static Task<Result<UseRecoveryCodeResult, Error>> UseRecoveryCode(String challengeToken, String recoveryCode)
-        => Execute<UseRecoveryCode, Result<UseRecoveryCodeResult, Error>>(uc => uc.Handle(challengeToken, recoveryCode));
+    public static async Task<Result<UseRecoveryCodeResult, Error>> UseRecoveryCode(String challengeToken, String recoveryCode)
+        => await Execute<UseRecoveryCode, Result<UseRecoveryCodeResult, Error>>(uc => uc.Handle(challengeToken, recoveryCode));
 
     // --- PASSWORD RECOVERY ---
 
-    public static Task<Result<EmptyResult, Error>> RequestPasswordReset(String email)
-        => Execute<RequestPasswordReset, Result<EmptyResult, Error>>(uc => uc.Handle(email));
+    public static async Task<Result<EmptyResult, Error>> RequestPasswordReset(String email)
+        => await Execute<RequestPasswordReset, Result<EmptyResult, Error>>(uc => uc.Handle(email));
 
-    public static Task<Result<EmptyResult, Error>> ResetPassword(String token, String newPassword)
-        => Execute<ResetPassword, Result<EmptyResult, Error>>(uc => uc.Handle(token, newPassword));
+    public static async Task<Result<EmptyResult, Error>> ResetPassword(String token, String newPassword)
+        => await Execute<ResetPassword, Result<EmptyResult, Error>>(uc => uc.Handle(token, newPassword));
 
     // --- MFA MANAGEMENT ---
 
-    public static Task<Result<Setup2faResult, Error>> GetTwoFactorSetup(String issuer, Guid userId)
-        => Execute<Setup2fa, Result<Setup2faResult, Error>>(uc => uc.Handle(issuer, userId));
+    public static async Task<Result<Setup2faResult, Error>> GetTwoFactorSetup(String issuer, Guid userId)
+        => await Execute<Setup2fa, Result<Setup2faResult, Error>>(uc => uc.Handle(issuer, userId));
 
-    public static Task<Result<Confirm2faResult, Error>> ConfirmTwoFactorSetup(Guid userId, String code)
-        => Execute<Confirm2fa, Result<Confirm2faResult, Error>>(uc => uc.Handle(userId, code));
+    public static async Task<Result<Confirm2faResult, Error>> ConfirmTwoFactorSetup(Guid userId, String code)
+        => await Execute<Confirm2fa, Result<Confirm2faResult, Error>>(uc => uc.Handle(userId, code));
 
-    public static Task<Result<EmptyResult, Error>> DisableTwoFactor(Guid userId)
-        => Execute<Disable2fa, Result<EmptyResult, Error>>(uc => uc.Handle(userId));
+    public static async Task<Result<EmptyResult, Error>> DisableTwoFactor(Guid userId)
+        => await Execute<Disable2fa, Result<EmptyResult, Error>>(uc => uc.Handle(userId));
 }
+
+// Result definitions:
+public record class EmptyResult();
 
 public record class Confirm2faResult(
     IReadOnlyList<string> RecoveryCodes

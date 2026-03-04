@@ -11,7 +11,11 @@ public class LoginEndpoint : Endpoint<LoginEndpoint.Req, object>
         AllowAnonymous();
     }
 
-    public record class Req(string username, string password);
+    public record class Req(
+        string username,
+        string password
+    );
+
     public override async Task HandleAsync(LoginEndpoint.Req req, CancellationToken ct)
     {
         var result = await AuthComponent.Login(req.username, req.password);

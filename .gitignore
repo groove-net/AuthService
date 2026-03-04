@@ -489,3 +489,5 @@ src/Auth/WebAPI.REST/secrets
 src/Auth/secrets
 scratchPad.json
 src/Auth/database.db
+src/Auth/scratchpad.json
+.pids

@@ -2,10 +2,19 @@
 set -e
 
 # --- Configuration ---
-ENTRYPOINT_DIR="src/WebAPI"
+AUTH_DIR="src/Auth/WebAPI.REST"
+# define more component apis here...
 COMPOSE_FILE="./deploy/dev.yaml"
 LOG_DIR="./logs"
 PID_FILE="./.pids"
+
+# --- Idempotency Check ---
+if [ -f "$PID_FILE" ]; then
+  echo "❌ Error: PID file ($PID_FILE) already exists."
+  echo "The application is likely already running."
+  echo "Please stop the current processes before starting new ones."
+  exit 1
+fi
 
 # --- Parse args ---
 USE_COMPOSE=false
@@ -14,7 +23,6 @@ if [[ "$1" == "--with-compose" ]]; then
 fi
 
 mkdir -p "$LOG_DIR"
-rm -f "$PID_FILE"  # clear any old PIDs
 
 # --- Run with Docker Compose ---
 if $USE_COMPOSE; then
@@ -30,12 +38,12 @@ echo "🚀 Starting local development servers..."
 
 # Start WebAPI
 (
-  cd "$ENTRYPOINT_DIR"
-  echo "Starting WebAPI..."
-  nohup dotnet run > "../../${LOG_DIR}/WebAPI.log" 2>&1 &
-  echo $! >> "../../${PID_FILE}"
+  cd "${AUTH_DIR}"
+  echo "Starting AuthAPI..."
+  nohup dotnet run > "../../../${LOG_DIR}/auth.log" 2>&1 &
+  echo $! >> "../../../${PID_FILE}"
   echo "  → PID $!"
 )
 
 echo "✅ All processes started in background."
-echo "📜 Logs: ${LOG_DIR}/WebAPI.log"
+echo "📜 View Logs: ${LOG_DIR}"
